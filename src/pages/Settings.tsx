@@ -1,15 +1,23 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/use-toast";
+import { useFileSystem } from "@/hooks/useFileSystem";
 
 const Settings = () => {
-  const handleScanLibrary = () => {
-    toast({
-      title: "Scanning library",
-      description: "Your music is being indexed...",
-    });
+  const { isScanning, scanProgress, scanMusicFiles } = useFileSystem();
+
+  const handleScanLibrary = async () => {
+    if (isScanning) {
+      toast({
+        title: "Scan in progress",
+        description: "Please wait for the current scan to complete."
+      });
+      return;
+    }
+    
+    await scanMusicFiles();
   };
 
   return (
@@ -23,9 +31,27 @@ const Settings = () => {
             <CardDescription>Manage your music library settings</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span>Auto-scan for new music</span>
-              <Button onClick={handleScanLibrary} size="sm">Scan Now</Button>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <span>Scan for music files</span>
+                <Button 
+                  onClick={handleScanLibrary} 
+                  size="sm" 
+                  disabled={isScanning}
+                >
+                  {isScanning ? "Scanning..." : "Scan Now"}
+                </Button>
+              </div>
+              
+              {isScanning && (
+                <div className="space-y-2">
+                  <Progress value={scanProgress.completedPercentage} className="h-2" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Scanned: {scanProgress.scannedFiles} / {scanProgress.totalFiles} files</span>
+                    <span>{scanProgress.completedPercentage}% complete</span>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
