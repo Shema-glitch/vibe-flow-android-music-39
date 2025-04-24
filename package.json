@@ -11,6 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@awesome-cordova-plugins/android-permissions": "^5.46.0",
+    "@awesome-cordova-plugins/core": "^5.46.0",
     "@capacitor/android": "^7.2.0",
     "@capacitor/core": "^7.2.0",
     "@hookform/resolvers": "^3.9.0",

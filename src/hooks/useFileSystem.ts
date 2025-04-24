@@ -1,6 +1,5 @@
 
 import { useState, useCallback } from 'react';
-import { AndroidPermissions } from '@awesome-cordova-plugins/android-permissions';
 import { toast } from "@/components/ui/use-toast";
 
 export interface ScanProgress {
@@ -31,24 +30,48 @@ export function useFileSystem() {
 
   const requestStoragePermission = useCallback(async () => {
     try {
-      const { hasPermission } = await AndroidPermissions.checkPermission(
-        AndroidPermissions.PERMISSION.READ_EXTERNAL_STORAGE
-      );
-
-      if (!hasPermission) {
-        const permissionResult = await AndroidPermissions.requestPermission(
-          AndroidPermissions.PERMISSION.READ_EXTERNAL_STORAGE
-        );
-        
-        if (!permissionResult.hasPermission) {
+      // Check if we're running in a Capacitor/Cordova environment
+      const isMobileApp = typeof (window as any).cordova !== 'undefined' || 
+                         typeof (window as any).Capacitor !== 'undefined';
+      
+      if (isMobileApp) {
+        // Dynamically import the plugin only when running in mobile environment
+        try {
+          // We'll use dynamic import to avoid the build error in web environment
+          const { AndroidPermissions } = await import('@awesome-cordova-plugins/android-permissions');
+          
+          const { hasPermission } = await AndroidPermissions.checkPermission(
+            AndroidPermissions.PERMISSION.READ_EXTERNAL_STORAGE
+          );
+  
+          if (!hasPermission) {
+            const permissionResult = await AndroidPermissions.requestPermission(
+              AndroidPermissions.PERMISSION.READ_EXTERNAL_STORAGE
+            );
+            
+            if (!permissionResult.hasPermission) {
+              toast({
+                title: "Permission denied",
+                description: "Storage permission is required to scan music files.",
+                variant: "destructive"
+              });
+              return false;
+            }
+          }
+        } catch (err) {
+          console.error("Error loading AndroidPermissions:", err);
           toast({
-            title: "Permission denied",
-            description: "Storage permission is required to scan music files.",
+            title: "Plugin error",
+            description: "Could not load the permissions plugin.",
             variant: "destructive"
           });
           return false;
         }
+      } else {
+        // When running in web browser, we'll simulate permission granted
+        console.log("Running in web environment, simulating permission granted");
       }
+      
       return true;
     } catch (error) {
       console.error("Error requesting permission:", error);
