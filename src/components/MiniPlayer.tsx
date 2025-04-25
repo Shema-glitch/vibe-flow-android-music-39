@@ -1,20 +1,33 @@
+
 import React, { useState } from "react";
 import { Play, Pause, Heart } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import FullPlayer from "./FullPlayer";
 import { useMusicPlayer } from "@/hooks/useMusicPlayer";
+import { useFavorites } from "@/hooks/useFavorites";
 
 const MiniPlayer = () => {
   const { currentSong, isPlaying, togglePlay } = useMusicPlayer();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [showFullPlayer, setShowFullPlayer] = useState(false);
 
   if (!currentSong) return null;
 
+  const favoriteStatus = isFavorite(currentSong.id);
+
   const toggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsFavorite(!isFavorite);
+    if (favoriteStatus) {
+      removeFavorite(currentSong.id);
+    } else {
+      addFavorite({
+        id: currentSong.id,
+        title: currentSong.title,
+        artist: currentSong.artist,
+        albumArt: currentSong.albumArt
+      });
+    }
   };
 
   return (
@@ -26,27 +39,30 @@ const MiniPlayer = () => {
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-md bg-primary/10 overflow-hidden animate-pulse">
             <img
-              src="/placeholder.svg"
+              src={currentSong.albumArt || "/placeholder.svg"}
               alt="Album Art"
               className="h-full w-full object-cover"
             />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-sm truncate">Sample Track</h3>
-            <p className="text-xs text-muted-foreground truncate">Unknown Artist</p>
+            <h3 className="font-medium text-sm truncate">{currentSong.title}</h3>
+            <p className="text-xs text-muted-foreground truncate">{currentSong.artist}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={toggleFavorite}
               className={cn(
                 "p-2 rounded-full transition-colors",
-                isFavorite ? "text-red-500" : "text-muted-foreground"
+                favoriteStatus ? "text-red-500" : "text-muted-foreground"
               )}
             >
               <Heart className="h-5 w-5" />
             </button>
             <button
-              onClick={togglePlay}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePlay();
+              }}
               className="p-2 rounded-full bg-primary text-primary-foreground"
             >
               {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
@@ -60,7 +76,7 @@ const MiniPlayer = () => {
 
       <Dialog open={showFullPlayer} onOpenChange={setShowFullPlayer}>
         <DialogContent className="max-w-md p-0 border-none bg-transparent">
-          <FullPlayer isPlaying={isPlaying} setIsPlaying={setIsPlaying} />
+          <FullPlayer />
         </DialogContent>
       </Dialog>
     </>

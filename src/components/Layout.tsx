@@ -1,10 +1,25 @@
 
-import React from "react";
-import { Outlet } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import MiniPlayer from "./MiniPlayer";
 import Navbar from "./Navbar";
+import { useTheme } from "@/hooks/useTheme";
 
 const Layout = () => {
+  const { theme } = useTheme();
+  const location = useLocation();
+  
+  // This ensures the theme is applied to the root element
+  useEffect(() => {
+    const root = window.document.documentElement;
+    
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
   return (
     <div className="flex flex-col h-screen bg-background">
       <Navbar />

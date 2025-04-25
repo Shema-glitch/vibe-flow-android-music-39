@@ -1,12 +1,16 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/use-toast";
 import { useFileSystem } from "@/hooks/useFileSystem";
+import { Switch } from "@/components/ui/switch";
+import { useTheme } from "@/hooks/useTheme";
 
 const Settings = () => {
   const { isScanning, scanProgress, scanMusicFiles } = useFileSystem();
+  const { theme, setTheme } = useTheme();
 
   const handleScanLibrary = async () => {
     if (isScanning) {
@@ -18,6 +22,17 @@ const Settings = () => {
     }
     
     await scanMusicFiles();
+  };
+
+  const isDarkMode = theme === 'dark';
+  const isSystemMode = theme === 'system';
+
+  const toggleDarkMode = () => {
+    setTheme(isDarkMode ? 'light' : 'dark');
+  };
+
+  const toggleSystemTheme = () => {
+    setTheme(isSystemMode ? (isDarkMode ? 'dark' : 'light') : 'system');
   };
 
   return (
@@ -64,16 +79,18 @@ const Settings = () => {
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
               <span>Dark Mode</span>
-              <div className="w-10 h-5 bg-primary/20 rounded-full relative p-1 cursor-pointer">
-                <div className="absolute w-3 h-3 bg-primary rounded-full right-1"></div>
-              </div>
+              <Switch 
+                checked={isDarkMode} 
+                onCheckedChange={toggleDarkMode} 
+              />
             </div>
             
             <div className="flex justify-between items-center">
-              <span>Animations</span>
-              <div className="w-10 h-5 bg-primary rounded-full relative p-1 cursor-pointer">
-                <div className="absolute w-3 h-3 bg-white rounded-full right-1"></div>
-              </div>
+              <span>Use System Theme</span>
+              <Switch 
+                checked={isSystemMode} 
+                onCheckedChange={toggleSystemTheme} 
+              />
             </div>
           </CardContent>
         </Card>
