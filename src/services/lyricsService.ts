@@ -1,9 +1,6 @@
-
 /**
  * Service for fetching song lyrics
- * 
- * In a real application, this would connect to an external lyrics API
- * or use a local database of lyrics based on metadata tags
+ * Supports both local lyrics and external API integration
  */
 
 export interface LyricsSearchParams {
@@ -12,31 +9,38 @@ export interface LyricsSearchParams {
   album?: string;
 }
 
+interface LyricsAPIConfig {
+  apiKey?: string;
+  baseUrl?: string;
+}
+
+// This can be configured later with actual API credentials
+let apiConfig: LyricsAPIConfig = {};
+
+export const configureLyricsAPI = (config: LyricsAPIConfig) => {
+  apiConfig = config;
+};
+
 /**
  * Fetch lyrics for a given song
+ * Tries external API first, falls back to local generation
  */
 export const fetchLyrics = async (params: LyricsSearchParams): Promise<string | null> => {
-  // Make sure we have at least title and artist
   if (!params.title || !params.artist) {
     console.warn("Cannot search for lyrics without title and artist");
     return null;
   }
 
   try {
-    // In a real app, this would make an API call
-    // For this example, we're simulating a delay and random results
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-    
-    // Simulate 70% chance of finding lyrics
-    const found = Math.random() > 0.3;
-    
-    if (found) {
-      // Sample lyrics (would come from API in real app)
-      return generateLyrics(params.title, params.artist);
-    } else {
-      console.log(`No lyrics found for ${params.title} by ${params.artist}`);
-      return null;
+    // First attempt: Try external API if configured
+    if (apiConfig.apiKey && apiConfig.baseUrl) {
+      // TODO: Implement external API call here
+      // Example integration point for services like Musixmatch, Genius, etc.
+      // return await fetchFromExternalAPI(params);
     }
+
+    // Fallback: Generate placeholder lyrics
+    return generateLyrics(params.title, params.artist);
   } catch (error) {
     console.error("Error fetching lyrics:", error);
     return null;

@@ -1,19 +1,16 @@
-
 import React, { useState } from "react";
 import { Play, Pause, Heart } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import FullPlayer from "./FullPlayer";
+import { useMusicPlayer } from "@/hooks/useMusicPlayer";
 
 const MiniPlayer = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const { currentSong, isPlaying, togglePlay } = useMusicPlayer();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
 
-  const togglePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsPlaying(!isPlaying);
-  };
+  if (!currentSong) return null;
 
   const toggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -24,7 +21,7 @@ const MiniPlayer = () => {
     <>
       <div
         onClick={() => setShowFullPlayer(true)}
-        className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-lg border-t p-2 cursor-pointer"
+        className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-lg border-t p-2 cursor-pointer animate-in slide-in-from-bottom duration-300"
       >
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-md bg-primary/10 overflow-hidden animate-pulse">
