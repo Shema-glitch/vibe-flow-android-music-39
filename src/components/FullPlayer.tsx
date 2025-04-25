@@ -5,77 +5,29 @@ import { cn } from "@/lib/utils";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMusicPlayer } from "@/hooks/useMusicPlayer";
+import { useFavorites } from "@/hooks/useFavorites";
 
-interface FullPlayerProps {
-  isPlaying: boolean;
-  setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-const FullPlayer = ({ isPlaying, setIsPlaying }: FullPlayerProps) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+const FullPlayer = () => {
+  const { isPlaying, togglePlay, currentSong, nextSong, prevSong, lyrics, loadingLyrics } = useMusicPlayer();
+  const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [showLyrics, setShowLyrics] = useState(false);
-  const [lyrics, setLyrics] = useState<string | null>(null);
-  const [loadingLyrics, setLoadingLyrics] = useState(false);
 
-  // Simulate fetching lyrics when the player opens
-  useEffect(() => {
-    const fetchLyrics = async () => {
-      if (showLyrics && !lyrics && !loadingLyrics) {
-        setLoadingLyrics(true);
-        
-        try {
-          // Simulate API call delay
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-          // 70% chance to find lyrics, 30% chance not to find any
-          const foundLyrics = Math.random() > 0.3;
-          
-          if (foundLyrics) {
-            setLyrics(`[Verse 1]
-I've been searching for something real
-In a world of illusions that never heal
-The city lights blind my tired eyes
-As I wander through these crowded skies
+  const favoriteStatus = currentSong ? isFavorite(currentSong.id) : false;
 
-[Chorus]
-But with you, I found my way
-Through the darkness to a brighter day
-No matter how far we might roam
-In your arms, I've found my home
-
-[Verse 2]
-The morning sun breaks through the clouds
-Silencing all my doubts out loud
-Every moment feels like a dream
-With you beside me in this stream
-
-[Bridge]
-Time stands still when we're together
-A love like this lasts forever
-Through the storms and sunny days
-I'll be with you, always
-
-[Chorus]
-But with you, I found my way
-Through the darkness to a brighter day
-No matter how far we might roam
-In your arms, I've found my home`);
-          } else {
-            setLyrics(null);
-          }
-        } catch (error) {
-          console.error("Error fetching lyrics:", error);
-        } finally {
-          setLoadingLyrics(false);
-        }
-      }
-    };
+  const toggleFavorite = () => {
+    if (!currentSong) return;
     
-    fetchLyrics();
-  }, [showLyrics, lyrics, loadingLyrics]);
-
-  const togglePlay = () => {
-    setIsPlaying(!isPlaying);
+    if (favoriteStatus) {
+      removeFavorite(currentSong.id);
+    } else {
+      addFavorite({
+        id: currentSong.id,
+        title: currentSong.title,
+        artist: currentSong.artist,
+        albumArt: currentSong.albumArt
+      });
+    }
   };
 
   return (
@@ -83,7 +35,7 @@ In your arms, I've found my home`);
       <div className="flex flex-col items-center mb-6">
         <div className="mb-8 w-full max-w-[280px] aspect-square bg-primary/10 rounded-xl overflow-hidden shadow-lg">
           <img
-            src="/placeholder.svg"
+            src={currentSong?.albumArt || "/placeholder.svg"}
             alt="Album Cover"
             className={cn(
               "w-full h-full object-cover transition-transform duration-5000",
@@ -94,8 +46,8 @@ In your arms, I've found my home`);
         </div>
 
         <div className="w-full text-center mb-6">
-          <h2 className="text-xl font-bold mb-1 animate-in fade-in-25">Sample Track</h2>
-          <p className="text-muted-foreground animate-in fade-in-50">Unknown Artist</p>
+          <h2 className="text-xl font-bold mb-1 animate-in fade-in-25">{currentSong?.title || "No Track Selected"}</h2>
+          <p className="text-muted-foreground animate-in fade-in-50">{currentSong?.artist || "Unknown Artist"}</p>
         </div>
 
         <div className="w-full mb-6">
@@ -112,7 +64,10 @@ In your arms, I've found my home`);
           <button className="text-muted-foreground hover:text-foreground transition-colors">
             <Shuffle className="h-5 w-5" />
           </button>
-          <button className="text-foreground hover:text-primary transition-colors">
+          <button 
+            className="text-foreground hover:text-primary transition-colors"
+            onClick={prevSong}
+          >
             <SkipBack className="h-6 w-6" />
           </button>
           <button
@@ -121,7 +76,10 @@ In your arms, I've found my home`);
           >
             {isPlaying ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7 ml-1" />}
           </button>
-          <button className="text-foreground hover:text-primary transition-colors">
+          <button 
+            className="text-foreground hover:text-primary transition-colors"
+            onClick={nextSong}
+          >
             <SkipForward className="h-6 w-6" />
           </button>
           <button className="text-muted-foreground hover:text-foreground transition-colors">
@@ -134,13 +92,13 @@ In your arms, I've found my home`);
             <Volume2 className="h-5 w-5" />
           </button>
           <button
-            onClick={() => setIsFavorite(!isFavorite)}
+            onClick={toggleFavorite}
             className={cn(
               "transition-colors",
-              isFavorite ? "text-red-500" : "text-muted-foreground"
+              favoriteStatus ? "text-red-500" : "text-muted-foreground"
             )}
           >
-            <Heart className={cn("h-6 w-6", isFavorite && "fill-current")} />
+            <Heart className={cn("h-6 w-6", favoriteStatus && "fill-current")} />
           </button>
         </div>
       </div>
