@@ -4,6 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { Headphones, Music, FileMusic } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useFileSystem } from "@/hooks/useFileSystem";
 
 interface Song {
   id: string;
@@ -22,10 +25,30 @@ const mockSongs: Song[] = [
   { id: "6", title: "Mountain Echo", artist: "Nature Sounds", albumArt: "/placeholder.svg", duration: "5:22" },
 ];
 
+const welcomeCards = [
+  {
+    title: "Discover New Music",
+    description: "Scan your device to find all your favorite tracks",
+    icon: <FileMusic className="h-8 w-8" />
+  },
+  {
+    title: "Enjoy Your Playlists",
+    description: "Create custom playlists for every mood",
+    icon: <Music className="h-8 w-8" />
+  },
+  {
+    title: "Immersive Experience",
+    description: "Get lyrics and enjoy your music to the fullest",
+    icon: <Headphones className="h-8 w-8" />
+  }
+];
+
 const Home = () => {
   const [recentlyAdded, setRecentlyAdded] = useState<Song[]>([]);
   const [mostPlayed, setMostPlayed] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const { musicFiles, scanMusicFiles } = useFileSystem();
+  const hasMusicFiles = musicFiles.length > 0;
 
   useEffect(() => {
     // Simulate loading data
@@ -33,8 +56,33 @@ const Home = () => {
       try {
         // In a real app, this would be an actual API call or local file scan
         await new Promise(resolve => setTimeout(resolve, 1000));
-        setRecentlyAdded(mockSongs.slice(0, 4));
-        setMostPlayed(mockSongs.slice(2));
+        
+        if (hasMusicFiles) {
+          // Use real music files if available
+          const recentFiles = musicFiles.slice(0, 4).map(file => ({
+            id: file.id,
+            title: file.title || file.name,
+            artist: file.artist || 'Unknown Artist',
+            albumArt: file.albumArt || '/placeholder.svg',
+            duration: formatDuration(file.duration || 0)
+          }));
+          
+          const popularFiles = musicFiles.slice(2).map(file => ({
+            id: file.id,
+            title: file.title || file.name,
+            artist: file.artist || 'Unknown Artist',
+            albumArt: file.albumArt || '/placeholder.svg',
+            duration: formatDuration(file.duration || 0)
+          }));
+          
+          setRecentlyAdded(recentFiles);
+          setMostPlayed(popularFiles);
+        } else {
+          // Fall back to mock data if no files
+          setRecentlyAdded(mockSongs.slice(0, 4));
+          setMostPlayed(mockSongs.slice(2));
+        }
+        
         setLoading(false);
       } catch (error) {
         toast({
@@ -46,7 +94,46 @@ const Home = () => {
     };
 
     loadData();
-  }, []);
+  }, [musicFiles, hasMusicFiles]);
+
+  const formatDuration = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Welcome content when no songs are scanned
+  if (!hasMusicFiles && !loading) {
+    return (
+      <div className="p-4 animate-in fade-in duration-500">
+        <div className="text-center max-w-md mx-auto mb-10 mt-6">
+          <h1 className="text-3xl font-bold mb-4">Welcome to VibeFlow</h1>
+          <p className="text-muted-foreground mb-8">Your personal music player for all your favorite tunes</p>
+          
+          <Button 
+            onClick={scanMusicFiles} 
+            className="bg-primary text-primary-foreground px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all"
+          >
+            <FileMusic className="mr-2 h-5 w-5" /> Scan for Music
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          {welcomeCards.map((card, index) => (
+            <Card key={index} className="overflow-hidden hover:shadow-lg transition-all">
+              <CardContent className="p-6 flex flex-col items-center text-center">
+                <div className="bg-primary/10 p-4 rounded-full mb-4">
+                  {card.icon}
+                </div>
+                <h3 className="font-bold text-lg mb-2">{card.title}</h3>
+                <p className="text-muted-foreground">{card.description}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 animate-in fade-in duration-500">

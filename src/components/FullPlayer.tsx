@@ -1,9 +1,10 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FullPlayerProps {
   isPlaying: boolean;
@@ -13,6 +14,65 @@ interface FullPlayerProps {
 const FullPlayer = ({ isPlaying, setIsPlaying }: FullPlayerProps) => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [lyrics, setLyrics] = useState<string | null>(null);
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
+
+  // Simulate fetching lyrics when the player opens
+  useEffect(() => {
+    const fetchLyrics = async () => {
+      if (showLyrics && !lyrics && !loadingLyrics) {
+        setLoadingLyrics(true);
+        
+        try {
+          // Simulate API call delay
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // 70% chance to find lyrics, 30% chance not to find any
+          const foundLyrics = Math.random() > 0.3;
+          
+          if (foundLyrics) {
+            setLyrics(`[Verse 1]
+I've been searching for something real
+In a world of illusions that never heal
+The city lights blind my tired eyes
+As I wander through these crowded skies
+
+[Chorus]
+But with you, I found my way
+Through the darkness to a brighter day
+No matter how far we might roam
+In your arms, I've found my home
+
+[Verse 2]
+The morning sun breaks through the clouds
+Silencing all my doubts out loud
+Every moment feels like a dream
+With you beside me in this stream
+
+[Bridge]
+Time stands still when we're together
+A love like this lasts forever
+Through the storms and sunny days
+I'll be with you, always
+
+[Chorus]
+But with you, I found my way
+Through the darkness to a brighter day
+No matter how far we might roam
+In your arms, I've found my home`);
+          } else {
+            setLyrics(null);
+          }
+        } catch (error) {
+          console.error("Error fetching lyrics:", error);
+        } finally {
+          setLoadingLyrics(false);
+        }
+      }
+    };
+    
+    fetchLyrics();
+  }, [showLyrics, lyrics, loadingLyrics]);
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
@@ -85,14 +145,34 @@ const FullPlayer = ({ isPlaying, setIsPlaying }: FullPlayerProps) => {
         </div>
       </div>
 
-      <Drawer>
+      <Drawer open={showLyrics} onOpenChange={setShowLyrics}>
         <DrawerTrigger asChild>
           <Button variant="outline" className="w-full">Show Lyrics</Button>
         </DrawerTrigger>
         <DrawerContent>
-          <div className="p-6 pt-0">
-            <div className="mt-6 text-center space-y-4">
-              <p className="text-muted-foreground">Lyrics not available for this track.</p>
+          <div className="p-6 pt-0 max-h-[70vh] overflow-y-auto">
+            <div className="mt-6">
+              {loadingLyrics ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-11/12" />
+                  <Skeleton className="h-4 w-10/12" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-9/12" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-11/12" />
+                  <Skeleton className="h-4 w-10/12" />
+                </div>
+              ) : lyrics ? (
+                <div className="whitespace-pre-line text-center">
+                  {lyrics}
+                </div>
+              ) : (
+                <div className="text-center space-y-4">
+                  <p className="text-muted-foreground">No lyrics available for this track.</p>
+                  <p className="text-sm text-muted-foreground">Lyrics are automatically searched when available.</p>
+                </div>
+              )}
             </div>
           </div>
         </DrawerContent>

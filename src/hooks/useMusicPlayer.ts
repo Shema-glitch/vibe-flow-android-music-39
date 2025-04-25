@@ -1,6 +1,8 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Howl } from "howler";
+import { fetchLyrics } from "@/services/lyricsService";
+import { toast } from "@/components/ui/use-toast";
 
 interface Song {
   id: string;
@@ -19,6 +21,8 @@ export const useMusicPlayer = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
   const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none');
+  const [lyrics, setLyrics] = useState<string | null>(null);
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
   
   const soundRef = useRef<Howl | null>(null);
   const progressInterval = useRef<number | null>(null);
@@ -31,6 +35,36 @@ export const useMusicPlayer = () => {
     }
     if (progressInterval.current) {
       window.clearInterval(progressInterval.current);
+    }
+  }, []);
+
+  // Function to fetch lyrics
+  const getLyrics = useCallback(async (song: Song) => {
+    if (!song.title || !song.artist) return;
+    
+    setLoadingLyrics(true);
+    setLyrics(null);
+    
+    try {
+      const songLyrics = await fetchLyrics({
+        title: song.title,
+        artist: song.artist
+      });
+      
+      setLyrics(songLyrics);
+      
+      if (!songLyrics) {
+        console.log(`No lyrics found for ${song.title} by ${song.artist}`);
+      }
+    } catch (error) {
+      console.error("Error fetching lyrics:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load lyrics",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingLyrics(false);
     }
   }, []);
 
@@ -83,7 +117,10 @@ export const useMusicPlayer = () => {
     soundRef.current = sound;
     setCurrentSong(song);
     sound.play();
-  }, [volume, isMuted, repeatMode]);
+    
+    // Fetch lyrics when playing a song
+    getLyrics(song);
+  }, [volume, isMuted, repeatMode, cleanupAudio, getLyrics]);
 
   // Function to toggle play/pause
   const togglePlay = useCallback(() => {
@@ -166,6 +203,8 @@ export const useMusicPlayer = () => {
     isMuted,
     isShuffled,
     repeatMode,
+    lyrics,
+    loadingLyrics,
     playSong,
     togglePlay,
     nextSong,
@@ -175,6 +214,7 @@ export const useMusicPlayer = () => {
     cycleRepeatMode,
     changeVolume,
     toggleMute,
+    getLyrics,
     setProgress
   };
 };
