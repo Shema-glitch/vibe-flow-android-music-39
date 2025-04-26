@@ -1,4 +1,5 @@
 
+
 # Welcome to your Lovable project
 
 ## Project info
@@ -65,6 +66,32 @@ npx cap open android
 
 From Android Studio, you can run the app on your connected device or emulator.
 
+## Building an APK without Android Studio
+
+If you want to build an APK directly without opening Android Studio (for low-resource computers):
+
+1. Make sure you have the Android SDK command line tools installed and ANDROID_SDK_ROOT environment variable set
+2. Run the following commands:
+
+```sh
+# Build the web app
+npm run build
+
+# Sync with Android
+npx cap sync android
+
+# Navigate to Android project directory
+cd android
+
+# Build debug APK using Gradle
+./gradlew assembleDebug
+
+# OR build release APK (requires signing configuration in build.gradle)
+# ./gradlew assembleRelease
+```
+
+The debug APK will be available at: `android/app/build/outputs/apk/debug/app-debug.apk`
+
 ## What technologies are used for this project?
 
 This project is built with:
@@ -87,3 +114,4 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
