@@ -9,9 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/useTheme";
 import { AlertCircle, Shield } from "lucide-react";
 import { Capacitor } from '@capacitor/core';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Settings = () => {
-  const { isScanning, scanProgress, scanMusicFiles, requestStoragePermission } = useFileSystem();
+  const { isScanning, scanProgress, scanMusicFiles, requestStoragePermission, permissionStatus } = useFileSystem();
   const { theme, setTheme } = useTheme();
   const [isNative, setIsNative] = useState(false);
 
@@ -65,23 +66,46 @@ const Settings = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {isNative && (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md p-3 mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="h-5 w-5 text-amber-500" />
-                  <h3 className="font-medium text-amber-700 dark:text-amber-400">Storage Permissions Required</h3>
-                </div>
-                <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
-                  This app needs permission to access your storage to scan for music files.
-                </p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleRequestPermissions}
-                  className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
-                >
-                  Request Storage Permission
-                </Button>
-              </div>
+              <>
+                {permissionStatus === 'denied' && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-5 w-5" />
+                    <AlertTitle>Permission Required</AlertTitle>
+                    <AlertDescription>
+                      Storage permission is required to scan for music files. Please grant the permission.
+                      <div className="mt-2">
+                        <Button 
+                          onClick={handleRequestPermissions}
+                          size="sm" 
+                          variant="outline"
+                        >
+                          Request Permission
+                        </Button>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {permissionStatus !== 'denied' && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md p-3 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="h-5 w-5 text-amber-500" />
+                      <h3 className="font-medium text-amber-700 dark:text-amber-400">Storage Permissions Required</h3>
+                    </div>
+                    <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
+                      This app needs permission to access your storage to scan for music files.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleRequestPermissions}
+                      className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+                    >
+                      Request Storage Permission
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
             
             <div className="flex flex-col gap-2">
@@ -90,7 +114,7 @@ const Settings = () => {
                 <Button 
                   onClick={handleScanLibrary} 
                   size="sm" 
-                  disabled={isScanning}
+                  disabled={isScanning || (isNative && permissionStatus === 'denied')}
                 >
                   {isScanning ? "Scanning..." : "Scan Now"}
                 </Button>

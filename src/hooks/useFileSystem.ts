@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
@@ -30,6 +30,46 @@ export function useFileSystem() {
     completedPercentage: 0
   });
   const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
+  const [permissionStatus, setPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
+
+  // Check permission status on component mount
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      checkPermissionStatus();
+    }
+  }, []);
+
+  const checkPermissionStatus = async () => {
+    try {
+      if (Capacitor.getPlatform() === 'android') {
+        // Make sure the plugin is available
+        if (!AndroidPermissions) {
+          console.error("AndroidPermissions plugin is not available");
+          setPermissionStatus('denied');
+          return false;
+        }
+        
+        try {
+          const storagePermission = await AndroidPermissions.checkPermission(
+            AndroidPermissions.PERMISSION.READ_EXTERNAL_STORAGE
+          );
+          
+          console.log("Storage permission status:", storagePermission);
+          setPermissionStatus(storagePermission.hasPermission ? 'granted' : 'denied');
+          return storagePermission.hasPermission;
+        } catch (err) {
+          console.error("Error checking permission status:", err);
+          setPermissionStatus('denied');
+          return false;
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error("Error in checkPermissionStatus:", error);
+      setPermissionStatus('denied');
+      return false;
+    }
+  };
 
   const requestStoragePermission = useCallback(async () => {
     try {
@@ -37,6 +77,17 @@ export function useFileSystem() {
       
       if (isAndroid) {
         console.log("Android platform detected, requesting permissions");
+        
+        // First, check if AndroidPermissions is available
+        if (!AndroidPermissions) {
+          console.error("AndroidPermissions plugin is not available");
+          toast({
+            title: "Plugin error",
+            description: "Could not load the permissions plugin. Please restart the app and try again.",
+            variant: "destructive"
+          });
+          return false;
+        }
         
         try {
           // Check permission status
@@ -62,6 +113,7 @@ export function useFileSystem() {
                 description: "Storage permission is required to scan music files. Please enable it in your device settings.",
                 variant: "destructive"
               });
+              setPermissionStatus('denied');
               return false;
             }
           }
@@ -84,6 +136,7 @@ export function useFileSystem() {
             console.log("READ_MEDIA_AUDIO check failed, likely on older Android:", err);
           }
           
+          setPermissionStatus('granted');
           return true;
         } catch (err) {
           console.error("Error with AndroidPermissions:", err);
@@ -92,11 +145,13 @@ export function useFileSystem() {
             description: "Could not load the permissions plugin. Please restart the app and try again.",
             variant: "destructive"
           });
+          setPermissionStatus('denied');
           return false;
         }
       } else {
         // When running in web browser, we'll simulate permission granted
         console.log("Running in web environment, simulating permission granted");
+        setPermissionStatus('granted');
         return true;
       }
       
@@ -107,13 +162,21 @@ export function useFileSystem() {
         description: "Failed to request storage permission. Try restarting the app.",
         variant: "destructive"
       });
+      setPermissionStatus('denied');
       return false;
     }
   }, []);
 
   const scanMusicFiles = useCallback(async () => {
     console.log("Starting music file scan");
-    const hasPermission = await requestStoragePermission();
+    
+    // Check if we already have permission before requesting it
+    let hasPermission = await checkPermissionStatus();
+    
+    // If we don't have permission, request it
+    if (!hasPermission) {
+      hasPermission = await requestStoragePermission();
+    }
     
     console.log("Permission status:", hasPermission);
     
@@ -182,13 +245,14 @@ export function useFileSystem() {
     } finally {
       setIsScanning(false);
     }
-  }, [requestStoragePermission]);
+  }, [checkPermissionStatus, requestStoragePermission]);
   
   return {
     isScanning,
     scanProgress,
     musicFiles,
     scanMusicFiles,
-    requestStoragePermission
+    requestStoragePermission,
+    permissionStatus
   };
 }
