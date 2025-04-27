@@ -1,6 +1,9 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from "@/components/ui/use-toast";
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { AndroidPermissions } from '@awesome-cordova-plugins/android-permissions';
 
 export interface ScanProgress {
   totalFiles: number;
@@ -30,16 +33,11 @@ export function useFileSystem() {
 
   const requestStoragePermission = useCallback(async () => {
     try {
-      // Check if we're running in a Capacitor/Cordova environment
-      const isMobileApp = typeof (window as any).cordova !== 'undefined' || 
-                         typeof (window as any).Capacitor !== 'undefined';
+      const isAndroid = Capacitor.getPlatform() === 'android';
       
-      if (isMobileApp) {
-        // Dynamically import the plugin only when running in mobile environment
+      if (isAndroid) {
+        // Direct usage without dynamic import
         try {
-          // We'll use dynamic import to avoid the build error in web environment
-          const { AndroidPermissions } = await import('@awesome-cordova-plugins/android-permissions');
-          
           const { hasPermission } = await AndroidPermissions.checkPermission(
             AndroidPermissions.PERMISSION.READ_EXTERNAL_STORAGE
           );
@@ -58,11 +56,12 @@ export function useFileSystem() {
               return false;
             }
           }
+          return true;
         } catch (err) {
-          console.error("Error loading AndroidPermissions:", err);
+          console.error("Error with AndroidPermissions:", err);
           toast({
             title: "Plugin error",
-            description: "Could not load the permissions plugin.",
+            description: "Could not load the permissions plugin. Make sure permissions are granted in app settings.",
             variant: "destructive"
           });
           return false;
@@ -70,9 +69,9 @@ export function useFileSystem() {
       } else {
         // When running in web browser, we'll simulate permission granted
         console.log("Running in web environment, simulating permission granted");
+        return true;
       }
       
-      return true;
     } catch (error) {
       console.error("Error requesting permission:", error);
       toast({

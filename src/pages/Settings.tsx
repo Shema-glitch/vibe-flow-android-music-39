@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -7,10 +7,18 @@ import { toast } from "@/components/ui/use-toast";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/useTheme";
+import { AlertCircle } from "lucide-react";
+import { Capacitor } from '@capacitor/core';
 
 const Settings = () => {
   const { isScanning, scanProgress, scanMusicFiles } = useFileSystem();
   const { theme, setTheme } = useTheme();
+  const [isNative, setIsNative] = useState(false);
+
+  useEffect(() => {
+    // Check if running on native platform
+    setIsNative(Capacitor.isNativePlatform());
+  }, []);
 
   const handleScanLibrary = async () => {
     if (isScanning) {
@@ -58,6 +66,13 @@ const Settings = () => {
                 </Button>
               </div>
               
+              {isNative && (
+                <div className="text-xs text-amber-500 dark:text-amber-400 flex items-center gap-2 mt-1 mb-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Make sure to grant storage permissions in your device settings</span>
+                </div>
+              )}
+              
               {isScanning && (
                 <div className="space-y-2">
                   <Progress value={scanProgress.completedPercentage} className="h-2" />
@@ -103,6 +118,7 @@ const Settings = () => {
           <CardContent>
             <p className="text-sm text-muted-foreground">VibeFlow v1.0.0</p>
             <p className="text-xs text-muted-foreground mt-1">Created with Lovable</p>
+            {isNative && <p className="text-xs text-muted-foreground mt-1">Running on {Capacitor.getPlatform()}</p>}
           </CardContent>
         </Card>
       </div>
