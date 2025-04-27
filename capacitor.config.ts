@@ -6,8 +6,9 @@ const config: CapacitorConfig = {
   appName: 'vibe-flow-android-music',
   webDir: 'dist',
   server: {
-    url: 'https://cf516961-303d-481b-b621-61bab01570c3.lovableproject.com?forceHideBadge=true',
-    cleartext: true
+    androidScheme: 'https',
+    cleartext: true,
+    allowNavigation: ['*']
   },
   android: {
     buildOptions: {
