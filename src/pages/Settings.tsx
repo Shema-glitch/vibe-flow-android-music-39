@@ -7,11 +7,11 @@ import { toast } from "@/components/ui/use-toast";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/useTheme";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Shield } from "lucide-react";
 import { Capacitor } from '@capacitor/core';
 
 const Settings = () => {
-  const { isScanning, scanProgress, scanMusicFiles } = useFileSystem();
+  const { isScanning, scanProgress, scanMusicFiles, requestStoragePermission } = useFileSystem();
   const { theme, setTheme } = useTheme();
   const [isNative, setIsNative] = useState(false);
 
@@ -30,6 +30,16 @@ const Settings = () => {
     }
     
     await scanMusicFiles();
+  };
+
+  const handleRequestPermissions = async () => {
+    const granted = await requestStoragePermission();
+    if (granted) {
+      toast({
+        title: "Permission granted",
+        description: "Storage permission has been granted. You can now scan for music files."
+      });
+    }
   };
 
   const isDarkMode = theme === 'dark';
@@ -54,6 +64,26 @@ const Settings = () => {
             <CardDescription>Manage your music library settings</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {isNative && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md p-3 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="h-5 w-5 text-amber-500" />
+                  <h3 className="font-medium text-amber-700 dark:text-amber-400">Storage Permissions Required</h3>
+                </div>
+                <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
+                  This app needs permission to access your storage to scan for music files.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRequestPermissions}
+                  className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+                >
+                  Request Storage Permission
+                </Button>
+              </div>
+            )}
+            
             <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center">
                 <span>Scan for music files</span>
@@ -65,13 +95,6 @@ const Settings = () => {
                   {isScanning ? "Scanning..." : "Scan Now"}
                 </Button>
               </div>
-              
-              {isNative && (
-                <div className="text-xs text-amber-500 dark:text-amber-400 flex items-center gap-2 mt-1 mb-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Make sure to grant storage permissions in your device settings</span>
-                </div>
-              )}
               
               {isScanning && (
                 <div className="space-y-2">

@@ -36,32 +36,60 @@ export function useFileSystem() {
       const isAndroid = Capacitor.getPlatform() === 'android';
       
       if (isAndroid) {
-        // Direct usage without dynamic import
+        console.log("Android platform detected, requesting permissions");
+        
         try {
-          const { hasPermission } = await AndroidPermissions.checkPermission(
+          // Check permission status
+          const storagePermission = await AndroidPermissions.checkPermission(
             AndroidPermissions.PERMISSION.READ_EXTERNAL_STORAGE
           );
-  
-          if (!hasPermission) {
+          
+          console.log("Storage permission status:", storagePermission);
+          
+          if (!storagePermission.hasPermission) {
+            console.log("Requesting storage permission");
+            
+            // Request permission from user
             const permissionResult = await AndroidPermissions.requestPermission(
               AndroidPermissions.PERMISSION.READ_EXTERNAL_STORAGE
             );
             
+            console.log("Permission request result:", permissionResult);
+            
             if (!permissionResult.hasPermission) {
               toast({
                 title: "Permission denied",
-                description: "Storage permission is required to scan music files.",
+                description: "Storage permission is required to scan music files. Please enable it in your device settings.",
                 variant: "destructive"
               });
               return false;
             }
           }
+          
+          // For Android 13+ (API 33+), also request READ_MEDIA_AUDIO permission
+          try {
+            const audioPermission = await AndroidPermissions.checkPermission(
+              "android.permission.READ_MEDIA_AUDIO"
+            );
+            
+            if (!audioPermission.hasPermission) {
+              const audioPermResult = await AndroidPermissions.requestPermission(
+                "android.permission.READ_MEDIA_AUDIO"
+              );
+              
+              console.log("Audio media permission result:", audioPermResult);
+            }
+          } catch (err) {
+            // This might fail on older Android versions, which is fine
+            console.log("READ_MEDIA_AUDIO check failed, likely on older Android:", err);
+          }
+          
           return true;
         } catch (err) {
           console.error("Error with AndroidPermissions:", err);
           toast({
             title: "Plugin error",
-            description: "Could not load the permissions plugin. Make sure permissions are granted in app settings.",
+            description: "Could not load the permissions plugin. Please restart the app and try again.",
             variant: "destructive"
           });
           return false;
@@ -76,7 +104,7 @@ export function useFileSystem() {
       console.error("Error requesting permission:", error);
       toast({
         title: "Permission error",
-        description: "Failed to request storage permission.",
+        description: "Failed to request storage permission. Try restarting the app.",
         variant: "destructive"
       });
       return false;
@@ -84,8 +112,15 @@ export function useFileSystem() {
   }, []);
 
   const scanMusicFiles = useCallback(async () => {
+    console.log("Starting music file scan");
     const hasPermission = await requestStoragePermission();
-    if (!hasPermission) return;
+    
+    console.log("Permission status:", hasPermission);
+    
+    if (!hasPermission) {
+      console.log("No permission, stopping scan");
+      return;
+    }
 
     setIsScanning(true);
     setScanProgress({
