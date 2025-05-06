@@ -415,7 +415,18 @@ export function useFileSystem() {
         '/storage/emulated/0/Download',
         '/storage/emulated/0/DCIM/Audio',
         '/storage/emulated/0/Android/media',
-        '/storage/emulated/0/Sounds'
+        '/storage/emulated/0/Sounds',
+        '/storage/emulated/0/Media/Audio',
+        '/storage/emulated/0/WhatsApp/Media/Audio',
+        '/storage/emulated/0/Recordings',
+        '/storage/emulated/0/Android/data/com.spotify.music/files',
+        '/storage/emulated/0/Podcasts'
+      ];
+      
+      // Audio file extensions with common variations
+      const audioExtensions = [
+        '.mp3', '.m4a', '.aac', '.wav', '.wma', '.ogg', '.opus', 
+        '.flac', '.m4b', '.mp4a', '.MP3', '.M4A', '.AAC', '.WAV'
       ];
       
       // Audio file extensions
@@ -444,7 +455,12 @@ export function useFileSystem() {
             continue;
           }
           
-          console.log(`Found ${files.files.length} files in ${directory}`);
+          console.log(`Scanning directory: ${directory}`);
+          console.log(`Found ${files.files.length} total files`);
+          const audioFiles = files.files.filter(file => 
+            audioExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
+          );
+          console.log(`Found ${audioFiles.length} audio files in this directory`);
           
           // Filter audio files
           for (const file of files.files) {
