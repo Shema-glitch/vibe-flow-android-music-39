@@ -6,18 +6,18 @@
 
     <!-- Base permissions from Capacitor -->
     <uses-permission android:name="android.permission.INTERNET" />
-
+    
     <!-- Storage permissions for music scanning -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
-
+    
     <application
         android:hardwareAccelerated="true"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
-
+        
         <activity
             android:name="app.lovable.cf516961303d481bb62161bab01570c3.MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
