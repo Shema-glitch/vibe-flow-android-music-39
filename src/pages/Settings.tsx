@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +6,8 @@ import { toast } from "@/components/ui/use-toast";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/useTheme";
-import { AlertCircle, Shield, RefreshCw, AlertTriangle } from "lucide-react";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { AlertCircle, Shield, RefreshCw, AlertTriangle, Vibrate } from "lucide-react";
 import { Capacitor } from '@capacitor/core';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -15,13 +15,32 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 const Settings = () => {
   const { isScanning, isDeepScan, scanProgress, scanMusicFiles, deepScanMusicFiles, requestStoragePermission, permissionStatus } = useFileSystem();
   const { theme, setTheme } = useTheme();
+  const { triggerHapticFeedback } = useHapticFeedback();
   const [isNative, setIsNative] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [hapticEnabled, setHapticEnabled] = useState(() => {
+    const saved = localStorage.getItem('hapticEnabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   useEffect(() => {
     // Check if running on native platform
     setIsNative(Capacitor.isNativePlatform());
-  }, []);
+    
+    // Apply system theme initially
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    if (theme === 'system') {
+      const systemTheme = mediaQuery.matches ? 'dark' : 'light';
+      const root = window.document.documentElement;
+      root.classList.remove('light', 'dark');
+      root.classList.add(systemTheme);
+    }
+  }, [theme]);
+
+  // Save haptic setting to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('hapticEnabled', JSON.stringify(hapticEnabled));
+  }, [hapticEnabled]);
 
   const handleScanLibrary = async () => {
     if (isScanning) {
@@ -32,6 +51,7 @@ const Settings = () => {
       return;
     }
     
+    if (hapticEnabled) await triggerHapticFeedback();
     await scanMusicFiles();
   };
   
@@ -45,10 +65,12 @@ const Settings = () => {
     }
     
     setDialogOpen(false);
+    if (hapticEnabled) await triggerHapticFeedback();
     await deepScanMusicFiles();
   };
 
   const handleRequestPermissions = async () => {
+    if (hapticEnabled) await triggerHapticFeedback();
     const granted = await requestStoragePermission();
     if (granted) {
       toast({
@@ -58,7 +80,8 @@ const Settings = () => {
     }
   };
 
-  const handleRestartApp = () => {
+  const handleRestartApp = async () => {
+    if (hapticEnabled) await triggerHapticFeedback();
     // This will reload the page, which is a simple way to "restart" the app
     window.location.reload();
   };
@@ -66,12 +89,19 @@ const Settings = () => {
   const isDarkMode = theme === 'dark';
   const isSystemMode = theme === 'system';
 
-  const toggleDarkMode = () => {
+  const toggleDarkMode = async () => {
+    if (hapticEnabled) await triggerHapticFeedback();
     setTheme(isDarkMode ? 'light' : 'dark');
   };
 
-  const toggleSystemTheme = () => {
+  const toggleSystemTheme = async () => {
+    if (hapticEnabled) await triggerHapticFeedback();
     setTheme(isSystemMode ? (isDarkMode ? 'dark' : 'light') : 'system');
+  };
+  
+  const toggleHapticFeedback = async () => {
+    await triggerHapticFeedback();
+    setHapticEnabled(!hapticEnabled);
   };
 
   return (
@@ -125,7 +155,7 @@ const Settings = () => {
                   </Alert>
                 )}
                 
-                {permissionStatus !== 'denied' && (
+                {permissionStatus !== 'denied' && permissionStatus !== 'granted' && (
                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md p-3 mb-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Shield className="h-5 w-5 text-amber-500" />
@@ -240,6 +270,25 @@ const Settings = () => {
               <Switch 
                 checked={isSystemMode} 
                 onCheckedChange={toggleSystemTheme} 
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Feedback</CardTitle>
+            <CardDescription>Adjust device feedback settings</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Vibrate className="h-4 w-4 text-muted-foreground" />
+                <span>Haptic Feedback</span>
+              </div>
+              <Switch 
+                checked={hapticEnabled} 
+                onCheckedChange={toggleHapticFeedback} 
               />
             </div>
           </CardContent>

@@ -2,12 +2,19 @@ import { useState, useCallback, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
+import { useHapticFeedback } from './useHapticFeedback';
 
-// Import AndroidPermissions with a try-catch to handle potential import failures
+// Import AndroidPermissions dynamically
 let AndroidPermissions: any;
 try {
-  const AwesomeCordovaPlugins = require('@awesome-cordova-plugins/android-permissions');
-  AndroidPermissions = AwesomeCordovaPlugins.AndroidPermissions;
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    // Use dynamic import for web compatibility
+    import('@awesome-cordova-plugins/android-permissions').then(module => {
+      AndroidPermissions = module.AndroidPermissions;
+    }).catch(error => {
+      console.warn('Could not load AndroidPermissions:', error);
+    });
+  }
 } catch (error) {
   console.warn('Could not load @awesome-cordova-plugins/android-permissions:', error);
 }
@@ -42,6 +49,7 @@ export function useFileSystem() {
   });
   const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
   const [permissionStatus, setPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
+  const { triggerHapticFeedback, triggerNotificationHaptic } = useHapticFeedback();
 
   // Check permission status on component mount
   useEffect(() => {
@@ -84,6 +92,8 @@ export function useFileSystem() {
 
   const requestStoragePermission = useCallback(async () => {
     try {
+      await triggerHapticFeedback(); // Add haptic feedback
+      
       const isAndroid = Capacitor.getPlatform() === 'android';
       
       if (isAndroid) {
@@ -125,6 +135,7 @@ export function useFileSystem() {
                 description: "Storage permission is required to scan music files. Please enable it in your device settings.",
                 variant: "destructive"
               });
+              await triggerNotificationHaptic(); // Add failure haptic
               setPermissionStatus('denied');
               return false;
             }
@@ -174,15 +185,17 @@ export function useFileSystem() {
         description: "Failed to request storage permission. Try restarting the app.",
         variant: "destructive"
       });
+      await triggerNotificationHaptic(); // Add failure haptic
       // For better UX, still allow the user to try the app with mock data
       setPermissionStatus('denied');
       return false;
     }
-  }, []);
+  }, [triggerHapticFeedback, triggerNotificationHaptic]);
 
   // This function performs a deep scan of the entire storage for audio files
   const deepScanMusicFiles = useCallback(async () => {
     console.log("Starting deep music file scan");
+    await triggerHapticFeedback(); // Add haptic feedback on scan start
     
     // Check if we already have permission
     let hasPermission = await checkPermissionStatus();
@@ -209,6 +222,7 @@ export function useFileSystem() {
       if (!Capacitor.isNativePlatform()) {
         // Simulate scanning with mock data
         await simulateScanWithMockData(true);
+        await triggerNotificationHaptic(); // Add success haptic
         return;
       }
       
@@ -327,12 +341,14 @@ export function useFileSystem() {
           title: "Deep scan completed",
           description: `Found ${filesFound.length} music files on your device.`
         });
+        await triggerNotificationHaptic(); // Add success haptic
       } else {
         console.log("No audio files found");
         toast({
           title: "No music files found",
           description: "We couldn't find any audio files on your device. Try placing some MP3 files in your storage."
         });
+        await triggerNotificationHaptic(); // Add notification haptic
       }
       
     } catch (error) {
@@ -342,6 +358,7 @@ export function useFileSystem() {
         description: "An error occurred while scanning music files.",
         variant: "destructive"
       });
+      await triggerNotificationHaptic(); // Add failure notification
     } finally {
       setIsScanning(false);
       setIsDeepScan(false);
@@ -351,11 +368,12 @@ export function useFileSystem() {
         completedPercentage: 100
       });
     }
-  }, [checkPermissionStatus, requestStoragePermission]);
+  }, [checkPermissionStatus, requestStoragePermission, triggerHapticFeedback, triggerNotificationHaptic]);
 
   // This function scans for actual music files on the device - standard scan
   const scanMusicFiles = useCallback(async () => {
     console.log("Starting music file scan");
+    await triggerHapticFeedback(); // Add haptic feedback on scan start
     
     // Check if we already have permission before requesting it
     let hasPermission = await checkPermissionStatus();
@@ -384,6 +402,7 @@ export function useFileSystem() {
       if (!Capacitor.isNativePlatform()) {
         // Simulate scanning with mock data
         await simulateScanWithMockData();
+        await triggerNotificationHaptic(); // Add success haptic
         return;
       }
       
@@ -500,12 +519,14 @@ export function useFileSystem() {
           title: "Scan completed",
           description: `Found ${filesFound.length} music files on your device.`
         });
+        await triggerNotificationHaptic(); // Add success haptic
       } else {
         console.log("No audio files found");
         toast({
           title: "No music files found",
           description: "We couldn't find any audio files on your device. Try placing some MP3 files in your Music folder."
         });
+        await triggerNotificationHaptic(); // Add notification haptic
       }
       
     } catch (error) {
@@ -515,6 +536,7 @@ export function useFileSystem() {
         description: "An error occurred while scanning music files.",
         variant: "destructive"
       });
+      await triggerNotificationHaptic(); // Add failure notification haptic
     } finally {
       setIsScanning(false);
       setScanProgress({
@@ -523,7 +545,7 @@ export function useFileSystem() {
         completedPercentage: 100
       });
     }
-  }, [checkPermissionStatus, requestStoragePermission]);
+  }, [checkPermissionStatus, requestStoragePermission, triggerHapticFeedback, triggerNotificationHaptic]);
 
   // Helper function to determine MIME type based on file extension
   const getMimeType = (fileName: string): string => {
