@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { Capacitor } from '@capacitor/core';
@@ -35,6 +34,7 @@ export interface MusicFile {
 
 export function useFileSystem() {
   const [isScanning, setIsScanning] = useState(false);
+  const [isDeepScan, setIsDeepScan] = useState(false);
   const [scanProgress, setScanProgress] = useState<ScanProgress>({
     totalFiles: 0,
     scannedFiles: 0,
@@ -180,7 +180,180 @@ export function useFileSystem() {
     }
   }, []);
 
-  // This function scans for actual music files on the device
+  // This function performs a deep scan of the entire storage for audio files
+  const deepScanMusicFiles = useCallback(async () => {
+    console.log("Starting deep music file scan");
+    
+    // Check if we already have permission
+    let hasPermission = await checkPermissionStatus();
+    
+    if (!hasPermission) {
+      hasPermission = await requestStoragePermission();
+    }
+    
+    if (!hasPermission) {
+      console.log("No permission, stopping scan");
+      return;
+    }
+
+    setIsScanning(true);
+    setIsDeepScan(true);
+    setScanProgress({
+      totalFiles: 0,
+      scannedFiles: 0,
+      completedPercentage: 0
+    });
+    
+    try {
+      // In a web environment, use mock data for testing
+      if (!Capacitor.isNativePlatform()) {
+        // Simulate scanning with mock data
+        await simulateScanWithMockData(true);
+        return;
+      }
+      
+      // Start from root directory for deep scan
+      const rootDirs = ['/storage/emulated/0'];
+      const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
+      const filesFound: MusicFile[] = [];
+      
+      // Track progress
+      const dirsToScan: string[] = [...rootDirs];
+      let scannedDirs = 0;
+      let totalDirs = 1; // Start with 1 for the root, will increment as we discover subdirs
+      
+      while (dirsToScan.length > 0) {
+        const currentDir = dirsToScan.shift(); // Get next directory
+        
+        if (!currentDir) continue;
+        
+        try {
+          console.log(`Scanning directory: ${currentDir}`);
+          
+          // Read directory contents
+          let files;
+          try {
+            files = await Filesystem.readdir({
+              path: currentDir,
+              directory: Directory.External
+            });
+          } catch (e) {
+            console.log(`Could not read directory ${currentDir}:`, e);
+            continue;
+          }
+          
+          // Process each file/directory
+          for (const file of files.files) {
+            const filePath = `${currentDir}/${file.name}`;
+            
+            // If it's a directory, add it to the scan queue
+            if (file.type === 'directory') {
+              // Skip some system folders to avoid permission issues
+              const skipDirs = [
+                '/storage/emulated/0/Android/data',
+                '/storage/emulated/0/Android/obb',
+                '/storage/emulated/0/.android',
+                '/storage/emulated/0/android'
+              ];
+              
+              if (!skipDirs.some(dir => filePath.startsWith(dir))) {
+                dirsToScan.push(filePath);
+                totalDirs++;
+              }
+            } 
+            // If it's a file with audio extension
+            else if (file.type === 'file') {
+              const fileLower = file.name.toLowerCase();
+              if (audioExtensions.some(ext => fileLower.endsWith(ext))) {
+                try {
+                  // Get file URI
+                  const fileUri = await Filesystem.getUri({
+                    path: filePath,
+                    directory: Directory.External
+                  });
+                  
+                  // Extract metadata
+                  const fileName = file.name;
+                  const fileNameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
+                  const parts = fileNameWithoutExt.split('-').map(p => p.trim());
+                  
+                  let artist = 'Unknown Artist';
+                  let title = fileNameWithoutExt;
+                  
+                  if (parts.length >= 2) {
+                    artist = parts[0];
+                    title = parts.slice(1).join(' ');
+                  }
+                  
+                  filesFound.push({
+                    id: `file-${filesFound.length}-${Date.now()}`,
+                    path: filePath,
+                    name: file.name,
+                    title: title,
+                    artist: artist,
+                    album: 'Unknown Album',
+                    uri: fileUri.uri,
+                    mimeType: getMimeType(fileName)
+                  });
+                  
+                  console.log(`Found audio file: ${filePath}`);
+                } catch (e) {
+                  console.error(`Error processing file ${file.name}:`, e);
+                }
+              }
+            }
+          }
+          
+          scannedDirs++;
+          
+          // Update progress - show based on directories scanned vs total known directories
+          setScanProgress({
+            totalFiles: totalDirs, 
+            scannedFiles: scannedDirs,
+            completedPercentage: Math.floor((scannedDirs / totalDirs) * 100)
+          });
+          
+        } catch (err) {
+          console.error(`Error scanning directory ${currentDir}:`, err);
+          scannedDirs++;
+        }
+      }
+      
+      if (filesFound.length > 0) {
+        console.log(`Found ${filesFound.length} audio files on the device`);
+        setMusicFiles(filesFound);
+        
+        toast({
+          title: "Deep scan completed",
+          description: `Found ${filesFound.length} music files on your device.`
+        });
+      } else {
+        console.log("No audio files found");
+        toast({
+          title: "No music files found",
+          description: "We couldn't find any audio files on your device. Try placing some MP3 files in your storage."
+        });
+      }
+      
+    } catch (error) {
+      console.error("Error in deep scan:", error);
+      toast({
+        title: "Scan failed",
+        description: "An error occurred while scanning music files.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsScanning(false);
+      setIsDeepScan(false);
+      setScanProgress({
+        totalFiles: 100,
+        scannedFiles: 100,
+        completedPercentage: 100
+      });
+    }
+  }, [checkPermissionStatus, requestStoragePermission]);
+
+  // This function scans for actual music files on the device - standard scan
   const scanMusicFiles = useCallback(async () => {
     console.log("Starting music file scan");
     
@@ -367,8 +540,9 @@ export function useFileSystem() {
   };
   
   // For testing in web browser
-  const simulateScanWithMockData = async () => {
-    const totalFiles = 100;
+  const simulateScanWithMockData = async (isDeep = false) => {
+    const totalFiles = isDeep ? 200 : 100;
+    const foundFiles = isDeep ? 50 : 25;
     
     for (let i = 0; i <= totalFiles; i += 10) {
       setScanProgress({
@@ -377,35 +551,37 @@ export function useFileSystem() {
         completedPercentage: Math.floor((i / totalFiles) * 100)
       });
       
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, isDeep ? 300 : 200));
     }
     
     // Generate mock music files
-    const mockMusicFiles: MusicFile[] = Array.from({ length: 25 }, (_, i) => ({
+    const mockMusicFiles: MusicFile[] = Array.from({ length: foundFiles }, (_, i) => ({
       id: `song-${i + 1}`,
-      path: `/storage/emulated/0/Music/song${i + 1}.mp3`,
+      path: `/storage/emulated/0/${isDeep ? 'Deep/' : 'Music/'}song${i + 1}.mp3`,
       name: `song${i + 1}.mp3`,
       title: `Song Title ${i + 1}`,
       artist: i % 3 === 0 ? 'Artist A' : i % 3 === 1 ? 'Artist B' : 'Artist C',
       album: i % 5 === 0 ? 'Album X' : i % 5 === 1 ? 'Album Y' : i % 5 === 2 ? 'Album Z' : 'Greatest Hits',
       duration: 180 + i * 30, // Duration in seconds
-      uri: `file:///storage/emulated/0/Music/song${i + 1}.mp3`,
+      uri: `file:///storage/emulated/0/${isDeep ? 'Deep/' : 'Music/'}song${i + 1}.mp3`,
       mimeType: 'audio/mpeg'
     }));
     
     setMusicFiles(mockMusicFiles);
     
     toast({
-      title: "Scan completed",
+      title: `${isDeep ? 'Deep scan' : 'Scan'} completed`,
       description: `Found ${mockMusicFiles.length} music files.`
     });
   };
   
   return {
     isScanning,
+    isDeepScan,
     scanProgress,
     musicFiles,
     scanMusicFiles,
+    deepScanMusicFiles,
     requestStoragePermission,
     permissionStatus
   };

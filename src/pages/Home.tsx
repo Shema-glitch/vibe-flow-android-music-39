@@ -4,10 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { Headphones, Music, FileMusic, FileAudio } from "lucide-react";
+import { Headphones, Music, FileMusic, FileAudio, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFileSystem, MusicFile } from "@/hooks/useFileSystem";
 import { useMusicPlayer } from "@/hooks/useMusicPlayer";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 const welcomeCards = [
   {
@@ -28,9 +29,10 @@ const welcomeCards = [
 ];
 
 const Home = () => {
-  const { musicFiles, scanMusicFiles, isScanning } = useFileSystem();
+  const { musicFiles, scanMusicFiles, deepScanMusicFiles, isScanning, isDeepScan } = useFileSystem();
   const { playSong, setCurrentPlaylist } = useMusicPlayer();
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const hasMusicFiles = musicFiles.length > 0;
 
   // Group files by artist for display
@@ -66,6 +68,11 @@ const Home = () => {
       playSong(file);
     }
   };
+  
+  const handleDeepScan = () => {
+    setDialogOpen(false);
+    deepScanMusicFiles();
+  };
 
   const formatDuration = (seconds?: number): string => {
     if (!seconds) return "0:00";
@@ -82,14 +89,53 @@ const Home = () => {
           <h1 className="text-3xl font-bold mb-4">Welcome to VibeFlow</h1>
           <p className="text-muted-foreground mb-8">Access and play music files directly from your device</p>
           
-          <Button 
-            onClick={scanMusicFiles} 
-            disabled={isScanning}
-            className="bg-primary text-primary-foreground px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all"
-          >
-            <FileMusic className="mr-2 h-5 w-5" /> 
-            {isScanning ? "Scanning..." : "Scan for Music Files"}
-          </Button>
+          <div className="flex flex-col gap-4 items-center">
+            <Button 
+              onClick={scanMusicFiles} 
+              disabled={isScanning}
+              className="bg-primary text-primary-foreground px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all w-full max-w-[300px]"
+            >
+              <FileMusic className="mr-2 h-5 w-5" /> 
+              {isScanning && !isDeepScan ? "Scanning..." : "Quick Scan for Music"}
+            </Button>
+            
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="secondary"
+                  disabled={isScanning}
+                  className="px-8 py-6 text-lg rounded-full shadow-md hover:shadow-lg transition-all w-full max-w-[300px]"
+                >
+                  <AlertTriangle className="mr-2 h-5 w-5" /> 
+                  Scan Entire Device
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                    Deep Scan Warning
+                  </DialogTitle>
+                  <DialogDescription className="pt-2">
+                    This will scan your entire device storage for audio files. The process may:
+                    <ul className="list-disc pl-5 pt-2 space-y-1">
+                      <li>Take a long time to complete</li>
+                      <li>Use more battery power</li>
+                      <li>Temporarily slow down your device</li>
+                    </ul>
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="sm:justify-between">
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleDeepScan}>
+                    Start Deep Scan
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
@@ -113,14 +159,52 @@ const Home = () => {
     <div className="p-4 animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Your Music</h1>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={scanMusicFiles}
-          disabled={isScanning}
-        >
-          {isScanning ? "Scanning..." : "Rescan Files"}
-        </Button>
+        <div className="flex gap-2">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                disabled={isScanning}
+              >
+                {isScanning && isDeepScan ? "Scanning..." : "Deep Scan"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  Deep Scan Warning
+                </DialogTitle>
+                <DialogDescription className="pt-2">
+                  This will scan your entire device storage for audio files. The process may:
+                  <ul className="list-disc pl-5 pt-2 space-y-1">
+                    <li>Take a long time to complete</li>
+                    <li>Use more battery power</li>
+                    <li>Temporarily slow down your device</li>
+                  </ul>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="sm:justify-between">
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleDeepScan}>
+                  Start Deep Scan
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={scanMusicFiles}
+            disabled={isScanning}
+          >
+            {isScanning && !isDeepScan ? "Scanning..." : "Quick Scan"}
+          </Button>
+        </div>
       </div>
       
       {loading ? (
@@ -204,9 +288,18 @@ const Home = () => {
             We couldn't find any audio files on your device.<br />
             Try adding some MP3 files to your device or scan again.
           </p>
-          <Button onClick={scanMusicFiles} disabled={isScanning}>
-            {isScanning ? "Scanning..." : "Scan Again"}
-          </Button>
+          <div className="flex justify-center gap-4">
+            <Button onClick={scanMusicFiles} disabled={isScanning}>
+              {isScanning && !isDeepScan ? "Scanning..." : "Quick Scan"}
+            </Button>
+            <Button 
+              variant="secondary"
+              onClick={() => setDialogOpen(true)}
+              disabled={isScanning}
+            >
+              Deep Scan
+            </Button>
+          </div>
         </div>
       )}
     </div>

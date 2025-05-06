@@ -7,14 +7,16 @@ import { toast } from "@/components/ui/use-toast";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/useTheme";
-import { AlertCircle, Shield, RefreshCw } from "lucide-react";
+import { AlertCircle, Shield, RefreshCw, AlertTriangle } from "lucide-react";
 import { Capacitor } from '@capacitor/core';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 const Settings = () => {
-  const { isScanning, scanProgress, scanMusicFiles, requestStoragePermission, permissionStatus } = useFileSystem();
+  const { isScanning, isDeepScan, scanProgress, scanMusicFiles, deepScanMusicFiles, requestStoragePermission, permissionStatus } = useFileSystem();
   const { theme, setTheme } = useTheme();
   const [isNative, setIsNative] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     // Check if running on native platform
@@ -31,6 +33,19 @@ const Settings = () => {
     }
     
     await scanMusicFiles();
+  };
+  
+  const handleDeepScan = async () => {
+    if (isScanning) {
+      toast({
+        title: "Scan in progress",
+        description: "Please wait for the current scan to complete."
+      });
+      return;
+    }
+    
+    setDialogOpen(false);
+    await deepScanMusicFiles();
   };
 
   const handleRequestPermissions = async () => {
@@ -132,15 +147,64 @@ const Settings = () => {
               </>
             )}
             
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center">
-                <span>Scan for music files</span>
+                <span>Scan music folders</span>
                 <Button 
                   onClick={handleScanLibrary} 
                   size="sm" 
                   disabled={isScanning || (isNative && permissionStatus === 'denied')}
                 >
-                  {isScanning ? "Scanning..." : "Scan Now"}
+                  {isScanning && !isDeepScan ? "Scanning..." : "Scan Now"}
+                </Button>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                  <span>Full device scan</span>
+                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="ml-2 h-auto p-1"
+                      >
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-amber-500" />
+                          Deep Scan Warning
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                          This will scan your entire device storage for audio files. The process may:
+                          <ul className="list-disc pl-5 pt-2 space-y-1">
+                            <li>Take a long time to complete</li>
+                            <li>Use more battery power</li>
+                            <li>Temporarily slow down your device</li>
+                          </ul>
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter className="sm:justify-between">
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleDeepScan}>
+                          Start Deep Scan
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <Button 
+                  onClick={() => setDialogOpen(true)}
+                  variant="secondary"
+                  size="sm" 
+                  disabled={isScanning || (isNative && permissionStatus === 'denied')}
+                >
+                  {isScanning && isDeepScan ? "Scanning..." : "Deep Scan"}
                 </Button>
               </div>
               
@@ -148,7 +212,7 @@ const Settings = () => {
                 <div className="space-y-2">
                   <Progress value={scanProgress.completedPercentage} className="h-2" />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Scanned: {scanProgress.scannedFiles} / {scanProgress.totalFiles} files</span>
+                    <span>Scanned: {scanProgress.scannedFiles} / {scanProgress.totalFiles} {isDeepScan ? 'directories' : 'files'}</span>
                     <span>{scanProgress.completedPercentage}% complete</span>
                   </div>
                 </div>
