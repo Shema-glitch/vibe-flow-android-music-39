@@ -54,6 +54,11 @@ npm install
 # Build the web app
 npm run build
 
+# Before running the next cmd check if you have capacitor cli
+# Capacitor core in the devdependencies if not then run the
+# next cmd
+npm install @capacitor/core @capacitor/cli
+
 # Add Android platform (if not already added)
 npx cap add android
 
@@ -71,6 +76,7 @@ From Android Studio, you can run the app on your connected device or emulator.
 If you want to build an APK directly without opening Android Studio (for low-resource computers):
 
 1. Make sure you have the Android SDK command line tools installed and ANDROID_SDK_ROOT environment variable set
+3. Also make sure the capacitor core and cli are in the devdependencies in the @package.json
 2. Run the following commands:
 
 ```sh
