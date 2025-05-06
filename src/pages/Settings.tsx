@@ -7,7 +7,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useFileSystem } from "@/hooks/useFileSystem";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/useTheme";
-import { AlertCircle, Shield } from "lucide-react";
+import { AlertCircle, Shield, RefreshCw } from "lucide-react";
 import { Capacitor } from '@capacitor/core';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -43,6 +43,11 @@ const Settings = () => {
     }
   };
 
+  const handleRestartApp = () => {
+    // This will reload the page, which is a simple way to "restart" the app
+    window.location.reload();
+  };
+
   const isDarkMode = theme === 'dark';
   const isSystemMode = theme === 'system';
 
@@ -67,6 +72,25 @@ const Settings = () => {
           <CardContent className="space-y-4">
             {isNative && (
               <>
+                {permissionStatus === 'unknown' && (
+                  <Alert className="mb-4 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20">
+                    <AlertCircle className="h-5 w-5 text-amber-500" />
+                    <AlertTitle>Plugin Issue Detected</AlertTitle>
+                    <AlertDescription className="space-y-2">
+                      <p>There was an issue loading the permissions plugin. Try restarting the app.</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleRestartApp}
+                        className="mt-2 border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Restart App
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 {permissionStatus === 'denied' && (
                   <Alert variant="destructive" className="mb-4">
                     <AlertCircle className="h-5 w-5" />
