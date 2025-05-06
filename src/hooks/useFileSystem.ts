@@ -20,6 +20,9 @@ export interface MusicFile {
   album?: string;
   duration?: number;
   albumArt?: string;
+  uri?: string;
+  fileSize?: number;
+  mimeType?: string;
 }
 
 export function useFileSystem() {
@@ -167,6 +170,7 @@ export function useFileSystem() {
     }
   }, []);
 
+  // This function scans for actual music files on the device
   const scanMusicFiles = useCallback(async () => {
     console.log("Starting music file scan");
     
@@ -193,47 +197,133 @@ export function useFileSystem() {
     });
     
     try {
-      // Simulate scanning files
-      // In a real implementation, you would use Capacitor File plugin or Cordova File plugin
-      const totalFiles = 100; // Simulate 100 files to scan
+      // In a web environment, use mock data for testing
+      if (!Capacitor.isNativePlatform()) {
+        // Simulate scanning with mock data
+        await simulateScanWithMockData();
+        return;
+      }
       
-      for (let i = 0; i <= totalFiles; i++) {
-        if (i % 10 === 0) { // Update progress every 10 files
-          setScanProgress({
-            totalFiles,
-            scannedFiles: i,
-            completedPercentage: Math.floor((i / totalFiles) * 100)
-          });
+      // On Android, use the Filesystem API to scan for music files
+      const filesFound: MusicFile[] = [];
+      
+      // Common audio directories on Android
+      const directories = [
+        '/storage/emulated/0/Music',
+        '/storage/emulated/0/Download',
+        '/storage/emulated/0/DCIM/Audio',
+        '/storage/emulated/0/Android/media',
+        '/storage/emulated/0/Sounds'
+      ];
+      
+      // Audio file extensions
+      const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
+      
+      // Search through directories recursively
+      let totalDirectories = directories.length;
+      let scannedDirectories = 0;
+      
+      for (const directory of directories) {
+        try {
+          let files;
+          try {
+            files = await Filesystem.readdir({
+              path: directory,
+              directory: Directory.External
+            });
+          } catch (e) {
+            console.log(`Could not read directory ${directory}:`, e);
+            scannedDirectories++;
+            setScanProgress({
+              totalFiles: totalDirectories,
+              scannedFiles: scannedDirectories,
+              completedPercentage: Math.floor((scannedDirectories / totalDirectories) * 100)
+            });
+            continue;
+          }
           
-          // Pause to simulate processing time
-          await new Promise(resolve => setTimeout(resolve, 200));
+          console.log(`Found ${files.files.length} files in ${directory}`);
+          
+          // Filter audio files
+          for (const file of files.files) {
+            if (file.type === 'file') {
+              const fileLower = file.name.toLowerCase();
+              if (audioExtensions.some(ext => fileLower.endsWith(ext))) {
+                // This is an audio file
+                const filePath = `${directory}/${file.name}`;
+                console.log(`Found audio file: ${filePath}`);
+                
+                try {
+                  // Get the file URI
+                  const fileUri = await Filesystem.getUri({
+                    path: filePath,
+                    directory: Directory.External
+                  });
+                  
+                  // Extract metadata from filename (basic approach)
+                  // In a real app, you'd use a media library or metadata extraction
+                  const fileName = file.name;
+                  const fileNameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
+                  const parts = fileNameWithoutExt.split('-').map(p => p.trim());
+                  
+                  // Try to guess artist and title from filename
+                  let artist = 'Unknown Artist';
+                  let title = fileNameWithoutExt;
+                  
+                  if (parts.length >= 2) {
+                    artist = parts[0];
+                    title = parts.slice(1).join(' ');
+                  }
+                  
+                  filesFound.push({
+                    id: `file-${filesFound.length}-${Date.now()}`,
+                    path: filePath,
+                    name: file.name,
+                    title: title,
+                    artist: artist,
+                    album: 'Unknown Album',
+                    uri: fileUri.uri,
+                    mimeType: getMimeType(fileName)
+                  });
+                } catch (e) {
+                  console.error(`Error processing file ${file.name}:`, e);
+                }
+              }
+            }
+          }
+          
+          scannedDirectories++;
+          setScanProgress({
+            totalFiles: totalDirectories,
+            scannedFiles: scannedDirectories,
+            completedPercentage: Math.floor((scannedDirectories / totalDirectories) * 100)
+          });
+        } catch (err) {
+          console.error(`Error scanning directory ${directory}:`, err);
+          scannedDirectories++;
+          setScanProgress({
+            totalFiles: totalDirectories,
+            scannedFiles: scannedDirectories,
+            completedPercentage: Math.floor((scannedDirectories / totalDirectories) * 100)
+          });
         }
       }
       
-      // Simulate found music files with metadata
-      const mockMusicFiles: MusicFile[] = Array.from({ length: 25 }, (_, i) => ({
-        id: `song-${i + 1}`,
-        path: `/storage/emulated/0/Music/song${i + 1}.mp3`,
-        name: `song${i + 1}.mp3`,
-        title: `Song Title ${i + 1}`,
-        artist: i % 3 === 0 ? 'Artist A' : i % 3 === 1 ? 'Artist B' : 'Artist C',
-        album: i % 5 === 0 ? 'Album X' : i % 5 === 1 ? 'Album Y' : i % 5 === 2 ? 'Album Z' : 'Greatest Hits',
-        duration: 180 + i * 30, // Duration in seconds
-      }));
-      
-      setMusicFiles(mockMusicFiles);
-      
-      // Complete the scan
-      setScanProgress({
-        totalFiles,
-        scannedFiles: totalFiles,
-        completedPercentage: 100
-      });
-      
-      toast({
-        title: "Scan completed",
-        description: `Found ${mockMusicFiles.length} music files.`
-      });
+      if (filesFound.length > 0) {
+        console.log(`Found ${filesFound.length} audio files on the device`);
+        setMusicFiles(filesFound);
+        
+        toast({
+          title: "Scan completed",
+          description: `Found ${filesFound.length} music files on your device.`
+        });
+      } else {
+        console.log("No audio files found");
+        toast({
+          title: "No music files found",
+          description: "We couldn't find any audio files on your device. Try placing some MP3 files in your Music folder."
+        });
+      }
       
     } catch (error) {
       console.error("Error scanning files:", error);
@@ -244,8 +334,62 @@ export function useFileSystem() {
       });
     } finally {
       setIsScanning(false);
+      setScanProgress({
+        totalFiles: 100,
+        scannedFiles: 100,
+        completedPercentage: 100
+      });
     }
   }, [checkPermissionStatus, requestStoragePermission]);
+
+  // Helper function to determine MIME type based on file extension
+  const getMimeType = (fileName: string): string => {
+    const ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+    switch (ext) {
+      case '.mp3': return 'audio/mpeg';
+      case '.wav': return 'audio/wav';
+      case '.ogg': return 'audio/ogg';
+      case '.m4a': return 'audio/m4a';
+      case '.aac': return 'audio/aac';
+      case '.flac': return 'audio/flac';
+      default: return 'audio/mpeg';  // Default to mp3
+    }
+  };
+  
+  // For testing in web browser
+  const simulateScanWithMockData = async () => {
+    const totalFiles = 100;
+    
+    for (let i = 0; i <= totalFiles; i += 10) {
+      setScanProgress({
+        totalFiles,
+        scannedFiles: i,
+        completedPercentage: Math.floor((i / totalFiles) * 100)
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    // Generate mock music files
+    const mockMusicFiles: MusicFile[] = Array.from({ length: 25 }, (_, i) => ({
+      id: `song-${i + 1}`,
+      path: `/storage/emulated/0/Music/song${i + 1}.mp3`,
+      name: `song${i + 1}.mp3`,
+      title: `Song Title ${i + 1}`,
+      artist: i % 3 === 0 ? 'Artist A' : i % 3 === 1 ? 'Artist B' : 'Artist C',
+      album: i % 5 === 0 ? 'Album X' : i % 5 === 1 ? 'Album Y' : i % 5 === 2 ? 'Album Z' : 'Greatest Hits',
+      duration: 180 + i * 30, // Duration in seconds
+      uri: `file:///storage/emulated/0/Music/song${i + 1}.mp3`,
+      mimeType: 'audio/mpeg'
+    }));
+    
+    setMusicFiles(mockMusicFiles);
+    
+    toast({
+      title: "Scan completed",
+      description: `Found ${mockMusicFiles.length} music files.`
+    });
+  };
   
   return {
     isScanning,

@@ -5,15 +5,48 @@ import { cn } from "@/lib/utils";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import { useMusicPlayer } from "@/hooks/useMusicPlayer";
 import { useFavorites } from "@/hooks/useFavorites";
 
 const FullPlayer = () => {
-  const { isPlaying, togglePlay, currentSong, nextSong, prevSong, lyrics, loadingLyrics } = useMusicPlayer();
+  const { 
+    isPlaying, 
+    togglePlay, 
+    currentSong, 
+    nextSong, 
+    prevSong, 
+    lyrics, 
+    loadingLyrics,
+    progress,
+    seekTo,
+    getCurrentPosition,
+    getTotalDuration,
+    volume,
+    changeVolume,
+    isShuffled,
+    toggleShuffle,
+    repeatMode,
+    cycleRepeatMode
+  } = useMusicPlayer();
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [showLyrics, setShowLyrics] = useState(false);
+  const [currentPosition, setCurrentPosition] = useState("0:00");
+  const [totalDuration, setTotalDuration] = useState("0:00");
 
   const favoriteStatus = currentSong ? isFavorite(currentSong.id) : false;
+
+  // Update time displays
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isPlaying) {
+        setCurrentPosition(getCurrentPosition());
+        setTotalDuration(getTotalDuration());
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isPlaying, getCurrentPosition, getTotalDuration]);
 
   const toggleFavorite = () => {
     if (!currentSong) return;
@@ -28,6 +61,14 @@ const FullPlayer = () => {
         albumArt: currentSong.albumArt
       });
     }
+  };
+
+  const handleSeek = (value: number[]) => {
+    seekTo(value[0]);
+  };
+
+  const handleVolumeChange = (value: number[]) => {
+    changeVolume(value[0] / 100);
   };
 
   return (
@@ -52,16 +93,27 @@ const FullPlayer = () => {
 
         <div className="w-full mb-6">
           <div className="flex justify-between text-xs mb-1">
-            <span>1:45</span>
-            <span>3:30</span>
+            <span>{currentPosition}</span>
+            <span>{totalDuration}</span>
           </div>
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary w-1/2 rounded-full" />
-          </div>
+          <Slider
+            value={[progress]}
+            min={0}
+            max={100}
+            step={0.1}
+            onValueChange={handleSeek}
+            className="w-full"
+          />
         </div>
 
         <div className="flex items-center justify-center gap-6 mb-6">
-          <button className="text-muted-foreground hover:text-foreground transition-colors">
+          <button 
+            className={cn(
+              "text-muted-foreground hover:text-foreground transition-colors",
+              isShuffled && "text-primary"
+            )}
+            onClick={toggleShuffle}
+          >
             <Shuffle className="h-5 w-5" />
           </button>
           <button 
@@ -82,15 +134,30 @@ const FullPlayer = () => {
           >
             <SkipForward className="h-6 w-6" />
           </button>
-          <button className="text-muted-foreground hover:text-foreground transition-colors">
+          <button 
+            className={cn(
+              "text-muted-foreground hover:text-foreground transition-colors",
+              repeatMode !== 'none' && "text-primary"
+            )}
+            onClick={cycleRepeatMode}
+          >
             <Repeat className="h-5 w-5" />
+            {repeatMode === 'one' && <span className="absolute text-[8px] font-bold">1</span>}
           </button>
         </div>
 
-        <div className="flex items-center justify-between w-full">
-          <button className="flex items-center gap-2 text-muted-foreground">
-            <Volume2 className="h-5 w-5" />
-          </button>
+        <div className="flex items-center justify-between w-full mb-6">
+          <div className="flex items-center gap-2 w-1/3">
+            <Volume2 className="h-5 w-5 text-muted-foreground" />
+            <Slider
+              value={[volume * 100]}
+              min={0}
+              max={100}
+              step={1}
+              onValueChange={handleVolumeChange}
+              className="w-24"
+            />
+          </div>
           <button
             onClick={toggleFavorite}
             className={cn(

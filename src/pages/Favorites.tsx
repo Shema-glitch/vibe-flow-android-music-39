@@ -2,17 +2,20 @@
 import React from "react";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useMusicPlayer } from "@/hooks/useMusicPlayer";
-import { Heart } from "lucide-react";
+import { Heart, FileAudio } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Favorites = () => {
   const { favorites, removeFavorite } = useFavorites();
-  const { playSong } = useMusicPlayer();
+  const { playSong, formatDuration } = useMusicPlayer();
 
   const handlePlay = (song: any) => {
-    // Mock src for demo purposes
-    const songWithSrc = { ...song, src: '/demo-song.mp3' };
-    playSong(songWithSrc);
+    // We need to include a src for the song to play
+    // This would typically come from the file URI, but for favorites we may only have metadata
+    playSong({
+      ...song,
+      src: song.src || '' // If we don't have a src, playback will show an error
+    });
   };
 
   return (
@@ -35,17 +38,19 @@ const Favorites = () => {
               className="flex items-center gap-3 p-3 rounded-lg bg-card/50 hover:bg-card transition-colors cursor-pointer"
               onClick={() => handlePlay(song)}
             >
-              <div className="h-12 w-12 rounded-md bg-primary/10 overflow-hidden">
-                <img src={song.albumArt || "/placeholder.svg"} alt={song.title} className="h-full w-full object-cover" />
+              <div className="h-12 w-12 rounded-md bg-primary/10 overflow-hidden flex items-center justify-center">
+                {song.albumArt ? (
+                  <img src={song.albumArt} alt={song.title} className="h-full w-full object-cover" />
+                ) : (
+                  <FileAudio className="h-6 w-6 text-primary" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-sm truncate">{song.title}</h3>
                 <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
               </div>
               <button 
-                className={cn(
-                  "p-2 rounded-full text-red-500"
-                )}
+                className={cn("p-2 rounded-full text-red-500")}
                 onClick={(e) => {
                   e.stopPropagation();
                   removeFavorite(song.id);
